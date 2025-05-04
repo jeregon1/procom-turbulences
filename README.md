@@ -38,9 +38,9 @@ At the input of the decoder, the real and imaginary parts are concatenated befor
 To balance two key constraints : a good reconstruction and adherence to the physical constraints dictated by the Navier-Stokes equations (Goy shell model)
 The loss function is defined as follows:  
 
-$$
+```math
 \mathcal{L} = (1 - \alpha) \cdot \mathcal{L}_{\text{reconstruction}} + \alpha \cdot \mathcal{L}_{\text{physical}}
-$$
+```
 
 ### Physical loss
 
