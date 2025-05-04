@@ -4,9 +4,11 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import pytorch_lightning as pl
+#import lpips
 from turbulence.utils import combined_loss
 
 class Turbulence(pl.LightningModule):
+
     def __init__(self):
         """
         The __init__ method initializes the layers and structure of the autoencoder.
@@ -18,6 +20,7 @@ class Turbulence(pl.LightningModule):
         super(Turbulence, self).__init__()
 
         self.best_val_loss = float('inf')
+        #self.lpips_loss = lpips.LPIPS(net='alex')
         self.last_best_epoch = 0
         self.TRAINING_LOSSES = []
         self.VALIDATION_LOSSES = []
@@ -49,6 +52,10 @@ class Turbulence(pl.LightningModule):
 
         # Initialize weights safely
         self.apply(self.init_weights)
+
+        # LPIPS will follow the device of the model
+        #self.register_buffer("dummy", torch.zeros(1))  # Trick to get model's device later
+        #self.lpips_loss = self.lpips_loss.to(self.dummy.device)
 
     def init_weights(self, m):
         #Applies Kaiming normal initialization to all Linear layers.
@@ -144,6 +151,55 @@ class Turbulence(pl.LightningModule):
         self.log('train_loss', final_loss)
 
         return final_loss
+    
+    """
+    def training_step(self, batch, batch_idx):
+    """
+    """
+    Defines a single step in the training loop.
+
+    Arguments:
+    - batch: A batch of data provided by the DataLoader
+    - batch_idx: Index of the batch
+
+    Returns:
+    - loss: The loss calculated for this batch
+    """
+    """
+    x = batch  # Extract the features (input data) from the batch
+
+    # Forward pass through the autoencoder
+    x_hat = self(x)
+
+    # Combined loss (PINN + MCE or whatever is inside combined_loss)
+    final_loss = combined_loss(x_hat, x, self, self.alpha)
+
+    # -------------------- LPIPS Loss --------------------
+    # Normalization to [-1, 1] because LPIPS expects images in that range
+    x_norm = (x - 0.5) * 2
+    x_hat_norm = (x_hat - 0.5) * 2
+
+    # Send normalized tensors to same device as LPIPS
+    x_norm = x_norm.to(self.lpips_loss.net.device)
+    x_hat_norm = x_hat_norm.to(self.lpips_loss.net.device)
+
+    # Compute LPIPS loss
+    lpips_loss_value = self.lpips_loss(x_norm, x_hat_norm).mean()
+
+    # Weight for perceptual loss
+    lambda_lpips = 0.01  # <-- À ajuster selon besoin
+
+    # Total loss
+    total_loss = final_loss + lambda_lpips * lpips_loss_value
+
+    # Logging + keeping track
+    total_loss_score = total_loss.item()
+    self.TRAINING_LOSSES.append(np.log(total_loss_score))
+    self.log('train_loss', total_loss)
+
+    return total_loss
+
+    """
 
     def validation_step(self, batch, batch_idx):
         """
