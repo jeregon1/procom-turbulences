@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import pytorch_lightning as pl
-#import lpips
+import lpips
 from turbulence.utils import combined_loss
 
 class Turbulence(pl.LightningModule):
@@ -20,7 +20,6 @@ class Turbulence(pl.LightningModule):
         super(Turbulence, self).__init__()
 
         self.best_val_loss = float('inf')
-        #self.lpips_loss = lpips.LPIPS(net='alex')
         self.last_best_epoch = 0
         self.TRAINING_LOSSES = []
         self.VALIDATION_LOSSES = []
@@ -53,9 +52,10 @@ class Turbulence(pl.LightningModule):
         # Initialize weights safely
         self.apply(self.init_weights)
 
-        # LPIPS will follow the device of the model
-        #self.register_buffer("dummy", torch.zeros(1))  # Trick to get model's device later
-        #self.lpips_loss = self.lpips_loss.to(self.dummy.device)
+        # Load LPIPS perceptual loss and store as non-module attribute (no .to() issue!)
+        lpips_model = lpips.LPIPS(net='alex').eval()
+        object.__setattr__(self, "_lpips_loss", lpips_model)
+
 
     def init_weights(self, m):
         #Applies Kaiming normal initialization to all Linear layers.
@@ -63,6 +63,7 @@ class Turbulence(pl.LightningModule):
             nn.init.kaiming_normal_(m.weight, a=0.01)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
+
 
     def forward(self, features):
         """
@@ -125,33 +126,6 @@ class Turbulence(pl.LightningModule):
 
         return reconstructed.real
 
-    def training_step(self, batch, batch_idx):
-        """
-        Defines a single step in the training loop.
-
-        Arguments:
-        - batch: A batch of data provided by the DataLoader
-        - batch_idx: Index of the batch
-
-        Returns:
-        - loss: The loss calculated for this batch
-        """
-        x = batch  # Extract the features (input data) from the batch
-
-        # Forward pass through the autoencoder
-        x_hat = self(x)
-
-        final_loss = combined_loss(x_hat,x,self,self.alpha)
-        final_loss_score = final_loss.item()
-
-        # Taking loss
-        self.TRAINING_LOSSES.append(np.log(final_loss_score))
-
-        # Log the training loss (for visualization later)
-        self.log('train_loss', final_loss)
-
-        return final_loss
-    
     """
     def training_step(self, batch, batch_idx):
     """
@@ -171,35 +145,57 @@ class Turbulence(pl.LightningModule):
     # Forward pass through the autoencoder
     x_hat = self(x)
 
-    # Combined loss (PINN + MCE or whatever is inside combined_loss)
-    final_loss = combined_loss(x_hat, x, self, self.alpha)
+    final_loss = combined_loss(x_hat,x,self,self.alpha)
+    final_loss_score = final_loss.item()
 
-    # -------------------- LPIPS Loss --------------------
-    # Normalization to [-1, 1] because LPIPS expects images in that range
-    x_norm = (x - 0.5) * 2
-    x_hat_norm = (x_hat - 0.5) * 2
+    # Taking loss
+    self.TRAINING_LOSSES.append(np.log(final_loss_score))
 
-    # Send normalized tensors to same device as LPIPS
-    x_norm = x_norm.to(self.lpips_loss.net.device)
-    x_hat_norm = x_hat_norm.to(self.lpips_loss.net.device)
+    # Log the training loss (for visualization later)
+    self.log('train_loss', final_loss)
 
-    # Compute LPIPS loss
-    lpips_loss_value = self.lpips_loss(x_norm, x_hat_norm).mean()
-
-    # Weight for perceptual loss
-    lambda_lpips = 0.01  # <-- À ajuster selon besoin
-
-    # Total loss
-    total_loss = final_loss + lambda_lpips * lpips_loss_value
-
-    # Logging + keeping track
-    total_loss_score = total_loss.item()
-    self.TRAINING_LOSSES.append(np.log(total_loss_score))
-    self.log('train_loss', total_loss)
-
-    return total_loss
-
+    return final_loss
     """
+    
+    
+    def training_step (self, batch, batch_idx) :
+        """
+        Defines a single step in the training loop.
+
+        Arguments:
+        - batch: A batch of data provided by the DataLoader
+        - batch_idx: Index of the batch
+
+        Returns:
+        - loss: The loss calculated for this batch
+        """
+        x = batch
+        x_hat = self(x)
+
+        final_loss = combined_loss(x_hat, x, self, self.alpha)
+
+        # LPIPS Loss
+        x_norm = (x - 0.5) * 2
+        x_hat_norm = (x_hat - 0.5) * 2
+
+        # Obtenir le device de LPIPS
+        lpips_device = next(self._lpips_loss.parameters()).device
+        x_norm = x_norm.to(lpips_device)
+        x_hat_norm = x_hat_norm.to(lpips_device)
+
+        lpips_loss_value = self._lpips_loss(x_norm, x_hat_norm).mean()
+
+        lambda_lpips = 0.01
+
+        total_loss = final_loss + lambda_lpips * lpips_loss_value
+
+        total_loss_score = total_loss.item()
+        self.TRAINING_LOSSES.append(np.log(total_loss_score))
+        self.log('train_loss', total_loss)
+
+        return total_loss
+
+
 
     def validation_step(self, batch, batch_idx):
         """
@@ -222,6 +218,22 @@ class Turbulence(pl.LightningModule):
             print(f"Epoch {self.current_epoch}: Updated alpha to {self.alpha}")
 
         final_loss = combined_loss(x_hat,x,self,self.alpha)
+        final_loss_score = final_loss.item()
+        
+        # LPIPS Loss
+        x_norm = (x - 0.5) * 2
+        x_hat_norm = (x_hat - 0.5) * 2
+
+        lpips_device = next(self._lpips_loss.parameters()).device
+        x_norm = x_norm.to(lpips_device)
+        x_hat_norm = x_hat_norm.to(lpips_device)
+
+        lpips_loss_value = self._lpips_loss(x_norm, x_hat_norm).mean()
+
+        lambda_lpips = 0.01
+
+        # Total validation loss
+        final_loss = final_loss + lambda_lpips * lpips_loss_value
         final_loss_score = final_loss.item()
 
         #  update the a used in combined loss automatically
@@ -246,6 +258,7 @@ class Turbulence(pl.LightningModule):
 
         # Log the validation loss (for visualization later)
         self.log('val_loss', final_loss)
+
 
     def configure_optimizers(self):
         """
