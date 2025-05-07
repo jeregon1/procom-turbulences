@@ -12,8 +12,8 @@ def save_checkpoint(model, epoch, model_path):
     }, model_path)
     print(f"Model checkpoint saved.")
 
-def train(model_path, train_loader, val_loader, epochs=1000, pretrained=False, save_name="turbulence"):
-    model = Turbulence()
+def train(model_path, train_loader, val_loader, epochs=1000, pretrained=False, save_name="turbulence", spectralB=1e-3):
+    model = Turbulence(b=spectralB)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
@@ -27,7 +27,7 @@ def train(model_path, train_loader, val_loader, epochs=1000, pretrained=False, s
     else : 
         print("No pre-trained model found. Training from scratch.")
 
-    trainer = pl.Trainer(max_epochs=epochs, precision=16)
+    trainer = pl.Trainer(max_epochs=epochs)
     model.train()
     trainer.fit(model, train_loader, val_loader)
     print("Training finished.")
@@ -38,3 +38,16 @@ def train(model_path, train_loader, val_loader, epochs=1000, pretrained=False, s
 
     # Plotting the training and validation losses
     plot_losses(model.TRAINING_LOSSES, model.VALIDATION_LOSSES)
+
+    save_losses_to_csv(model.TRAINING_LOSSES, model.VALIDATION_LOSSES, spectralB, out_dir="/homes/j25lopez/pml/results/")
+
+
+def save_losses_to_csv(training_losses, validation_losses, b_value, out_dir):
+    import csv
+    os.makedirs(out_dir, exist_ok=True)
+    filename = os.path.join(out_dir, f"losses_b{b_value}.csv")
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["epoch", "training_loss", "validation_loss", "b"])
+        for i, (train_loss, val_loss) in enumerate(zip(training_losses, validation_losses)):
+            writer.writerow([i, train_loss, val_loss, b_value])

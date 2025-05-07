@@ -188,8 +188,8 @@ def gledzer_physics_loss_complex(u, dt=2e-3, k_n=k_n, lambd = 2,epsilon=0.5):
 def spectral_loss(pred, target):
     import torch.fft
     # Ensure input is float32 for FFT compatibility
-    pred = pred.float()
-    target = target.float()
+    # pred = pred.float()
+    # target = target.float()
     # Compute FFT along spatial dimensions
     pred_fft = torch.fft.fft2(pred)
     target_fft = torch.fft.fft2(target)
@@ -199,12 +199,12 @@ def spectral_loss(pred, target):
     # Compare spectra (e.g., MSE)
     return F.mse_loss(pred_power, target_power)
 
-def combined_loss(preds, target, model, a=1e-22, b=1e-2):
+def combined_loss(preds, target, model, a=1e-22):
     reconstructed = preds
     mse_loss = F.mse_loss(reconstructed, target)
     physics_loss = gledzer_physics_loss_complex(model.latent_space_complex)
     spec_loss = spectral_loss(reconstructed, target)
-    return (1-a-b)*mse_loss + a*physics_loss + b*spec_loss
+    return (1-a-model.b)*mse_loss + a*physics_loss + model.b*spec_loss
 
 def load_model(model, path):
     if path.endswith('.ckpt'):

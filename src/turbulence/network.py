@@ -4,12 +4,11 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import pytorch_lightning as pl
-import lpips
 from turbulence.utils import combined_loss
 
 class Turbulence(pl.LightningModule):
 
-    def __init__(self):
+    def __init__(self, b=0.01):
         """
         The __init__ method initializes the layers and structure of the autoencoder.
 
@@ -24,6 +23,7 @@ class Turbulence(pl.LightningModule):
         self.TRAINING_LOSSES = []
         self.VALIDATION_LOSSES = []
         self.alpha = 1e-32
+        self.b = b
 
         # Encoder part
         self.encoder_linear_layer_1 = nn.Linear(in_features=2048, out_features=1024)
@@ -52,10 +52,6 @@ class Turbulence(pl.LightningModule):
         # Initialize weights safely
         self.apply(self.init_weights)
 
-        # Load LPIPS perceptual loss and store as non-module attribute (no .to() issue!)
-        lpips_model = lpips.LPIPS(net='alex').eval()
-        object.__setattr__(self, "_lpips_loss", lpips_model)
-
 
     def init_weights(self, m):
         #Applies Kaiming normal initialization to all Linear layers.
@@ -78,7 +74,7 @@ class Turbulence(pl.LightningModule):
         ### Preprocessing
 
         # Ensure input is float32 for FFT compatibility
-        features = features.float()
+        # features = features.float()
         fft = torch.fft.fft(features, n=1024, dim=-1)  # Apply FFT along the last dimension
         fft = torch.cat((fft.real, fft.imag), dim=-1)
         # Shape : (1005,2048)
@@ -98,8 +94,10 @@ class Turbulence(pl.LightningModule):
         # Shape : (1005,48)
 
         # Latent Space Treatment
-        latent_space_im = self.latent_im(encode_out_3).float()
-        latent_space_re = self.latent_re(encode_out_3).float()
+        # latent_space_im = self.latent_im(encode_out_3).float()
+        # latent_space_re = self.latent_re(encode_out_3).float()
+        latent_space_im = self.latent_im(encode_out_3)
+        latent_space_re = self.latent_re(encode_out_3)
         self.latent_space_complex = torch.complex(latent_space_re, latent_space_im)
 
         ### Decoding
