@@ -54,6 +54,8 @@ class Turbulence(pl.LightningModule):
 
         # Load LPIPS perceptual loss and store as non-module attribute (no .to() issue!)
         lpips_model = lpips.LPIPS(net='alex').eval()
+        # Move the model to the same device as the current module
+        lpips_model = lpips_model.to(self.device)
         object.__setattr__(self, "_lpips_loss", lpips_model)
 
 

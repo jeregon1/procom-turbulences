@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+import csv
 
 # Plot the training and validation losses
 def plot_losses(training_loss, validation_loss):
@@ -15,6 +16,17 @@ def plot_losses(training_loss, validation_loss):
         plt.plot(validation_loss, label='Validation loss')
         plt.xlabel('nb_batch * Epoch')
         plt.ylabel('Log loss')
+
+# Save training and validation losses to a CSV file
+def save_losses_to_csv(training_losses, validation_losses, out_dir, model_name):
+    """Save training and validation losses to a CSV file."""
+    csv_path = f"{out_dir}/{model_name}_losses.csv"
+    with open(csv_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['training_loss', 'validation_loss'])
+        for t, v in zip(training_losses, validation_losses):
+            writer.writerow([t, v])
+    print(f"Losses saved to {csv_path}")
 
 # Plot the reconstruction 
 def plot_reconstruction(model, batch):

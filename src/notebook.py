@@ -7,15 +7,15 @@ from turbulence.train import train
 nb_images = 500 # Maximum = 500
 val_size = 0.2
 test_size = 0.2
-batch_size = 4
+batch_size = 16
 
 # Training parameters
 num_training_epochs = 50
-pretrained = True
+pretrained = False
 num_pretrained_epochs = 0
 
 image_folder_path = './velocity_images'
-train_loader, val_loader, test_loader = load_data(image_folder_path, nb_images, val_size, test_size, batch_size)
+train_loader, val_loader, test_loader = load_data(image_folder_path, nb_images, val_size, test_size, batch_size, preload_in_memory=True)
 
 pretrained_model_path = f'./turbulence/pretrained/turbulence_epoch_{num_pretrained_epochs}.ckpt'
-train(pretrained_model_path, train_loader, val_loader, epochs=num_training_epochs, pretrained=pretrained)
+train(pretrained_model_path, train_loader, val_loader, epochs=num_training_epochs, pretrained=pretrained, save_name="lpips")
