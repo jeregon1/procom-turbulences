@@ -41,13 +41,13 @@ def create_data_loaders(data, test_size ,valid_size ,batch_size):
     train_subset , val_subset = random_split(train_set, [len_train_set-len_val_set,len_val_set])
 
     #creating test loader
-    test_loader =  DataLoader(test_set, batch_size=batch_size,num_workers=8)
+    test_loader =  DataLoader(test_set, batch_size=batch_size,num_workers=2, pin_memory=True)
 
     #creating training dataloader
-    train_loader = DataLoader(train_subset, batch_size=batch_size,num_workers=8)
+    train_loader = DataLoader(train_subset, batch_size=batch_size,num_workers=2, pin_memory=True)
 
     #creating valid_loader
-    valid_loader = DataLoader(val_subset,batch_size=batch_size,num_workers=8)
+    valid_loader = DataLoader(val_subset,batch_size=batch_size,num_workers=2, pin_memory=True)
 
     return train_loader, valid_loader, test_loader
 

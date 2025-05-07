@@ -77,6 +77,8 @@ class Turbulence(pl.LightningModule):
         """
         ### Preprocessing
 
+        # Ensure input is float32 for FFT compatibility
+        features = features.float()
         fft = torch.fft.fft(features, n=1024, dim=-1)  # Apply FFT along the last dimension
         fft = torch.cat((fft.real, fft.imag), dim=-1)
         # Shape : (1005,2048)
@@ -96,9 +98,9 @@ class Turbulence(pl.LightningModule):
         # Shape : (1005,48)
 
         # Latent Space Treatment
-        latent_space_im = self.latent_im(encode_out_3)
-        latent_space_re = self.latent_re(encode_out_3)
-        self.latent_space_complex = torch.complex(latent_space_re,latent_space_im)
+        latent_space_im = self.latent_im(encode_out_3).float()
+        latent_space_re = self.latent_re(encode_out_3).float()
+        self.latent_space_complex = torch.complex(latent_space_re, latent_space_im)
 
         ### Decoding
 
@@ -126,39 +128,7 @@ class Turbulence(pl.LightningModule):
 
         return reconstructed.real
 
-    """
     def training_step(self, batch, batch_idx):
-    """
-    """
-    Defines a single step in the training loop.
-
-    Arguments:
-    - batch: A batch of data provided by the DataLoader
-    - batch_idx: Index of the batch
-
-    Returns:
-    - loss: The loss calculated for this batch
-    """
-    """
-    x = batch  # Extract the features (input data) from the batch
-
-    # Forward pass through the autoencoder
-    x_hat = self(x)
-
-    final_loss = combined_loss(x_hat,x,self,self.alpha)
-    final_loss_score = final_loss.item()
-
-    # Taking loss
-    self.TRAINING_LOSSES.append(np.log(final_loss_score))
-
-    # Log the training loss (for visualization later)
-    self.log('train_loss', final_loss)
-
-    return final_loss
-    """
-    
-    
-    def training_step (self, batch, batch_idx) :
         """
         Defines a single step in the training loop.
 
@@ -169,32 +139,21 @@ class Turbulence(pl.LightningModule):
         Returns:
         - loss: The loss calculated for this batch
         """
-        x = batch
+        x = batch  # Extract the features (input data) from the batch
+
+        # Forward pass through the autoencoder
         x_hat = self(x)
 
-        final_loss = combined_loss(x_hat, x, self, self.alpha)
+        final_loss = combined_loss(x_hat,x,self,self.alpha)
+        final_loss_score = final_loss.item()
 
-        # LPIPS Loss
-        x_norm = (x - 0.5) * 2
-        x_hat_norm = (x_hat - 0.5) * 2
+        # Taking loss
+        self.TRAINING_LOSSES.append(np.log(final_loss_score))
 
-        # Obtenir le device de LPIPS
-        lpips_device = next(self._lpips_loss.parameters()).device
-        x_norm = x_norm.to(lpips_device)
-        x_hat_norm = x_hat_norm.to(lpips_device)
+        # Log the training loss (for visualization later)
+        self.log('train_loss', final_loss)
 
-        lpips_loss_value = self._lpips_loss(x_norm, x_hat_norm).mean()
-
-        lambda_lpips = 0.01
-
-        total_loss = final_loss + lambda_lpips * lpips_loss_value
-
-        total_loss_score = total_loss.item()
-        self.TRAINING_LOSSES.append(np.log(total_loss_score))
-        self.log('train_loss', total_loss)
-
-        return total_loss
-
+        return final_loss
 
 
     def validation_step(self, batch, batch_idx):
@@ -220,20 +179,8 @@ class Turbulence(pl.LightningModule):
         final_loss = combined_loss(x_hat,x,self,self.alpha)
         final_loss_score = final_loss.item()
         
-        # LPIPS Loss
-        x_norm = (x - 0.5) * 2
-        x_hat_norm = (x_hat - 0.5) * 2
-
-        lpips_device = next(self._lpips_loss.parameters()).device
-        x_norm = x_norm.to(lpips_device)
-        x_hat_norm = x_hat_norm.to(lpips_device)
-
-        lpips_loss_value = self._lpips_loss(x_norm, x_hat_norm).mean()
-
-        lambda_lpips = 0.01
 
         # Total validation loss
-        final_loss = final_loss + lambda_lpips * lpips_loss_value
         final_loss_score = final_loss.item()
 
         #  update the a used in combined loss automatically

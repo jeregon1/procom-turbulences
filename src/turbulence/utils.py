@@ -15,6 +15,7 @@ def plot_losses(training_loss, validation_loss):
         plt.plot(validation_loss, label='Validation loss')
         plt.xlabel('nb_batch * Epoch')
         plt.ylabel('Log loss')
+        plt.legend()
 
 # Plot the reconstruction 
 def plot_reconstruction(model, batch):
@@ -129,7 +130,7 @@ def gledzer_physics_loss_complex(u, dt=2e-3, k_n=k_n, lambd = 2,epsilon=0.5):
     u = u.view(batch*seq_len,n_shells*channel)
     seq_len, n_shells = u.shape
     # Coefficients for the nonlinear terms
-    a, b, c = 1.0, -epsilon/lambd, (epsilon-1)/lambd
+    a, b, c = 1.0, -epsilon/lambd, (epsilon-1)/(lambd**2)
 
     # Ensure k_n is a tensor on the correct device
     if not torch.is_tensor(k_n):
@@ -183,11 +184,27 @@ def gledzer_physics_loss_complex(u, dt=2e-3, k_n=k_n, lambd = 2,epsilon=0.5):
 
     return loss
 
-def combined_loss(preds,target, model,a=1e-22):
+
+def spectral_loss(pred, target):
+    import torch.fft
+    # Ensure input is float32 for FFT compatibility
+    pred = pred.float()
+    target = target.float()
+    # Compute FFT along spatial dimensions
+    pred_fft = torch.fft.fft2(pred)
+    target_fft = torch.fft.fft2(target)
+    # Compute power spectra
+    pred_power = torch.abs(pred_fft) ** 2
+    target_power = torch.abs(target_fft) ** 2
+    # Compare spectra (e.g., MSE)
+    return F.mse_loss(pred_power, target_power)
+
+def combined_loss(preds, target, model, a=1e-22, b=1e-2):
     reconstructed = preds
     mse_loss = F.mse_loss(reconstructed, target)
     physics_loss = gledzer_physics_loss_complex(model.latent_space_complex)
-    return (1-a)*mse_loss + a*physics_loss
+    spec_loss = spectral_loss(reconstructed, target)
+    return (1-a-b)*mse_loss + a*physics_loss + b*spec_loss
 
 def load_model(model, path):
     if path.endswith('.ckpt'):
@@ -199,3 +216,5 @@ def load_model(model, path):
         model.load_state_dict(torch.load(path))
     else:
         raise ValueError('Invalid model path')
+
+# modelo pips, loss function, pequeñas escalas, espectro fft, articulo autoencoder bajar dimensionalidad kurtosis

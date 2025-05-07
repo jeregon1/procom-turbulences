@@ -12,7 +12,7 @@ def save_checkpoint(model, epoch, model_path):
     }, model_path)
     print(f"Model checkpoint saved.")
 
-def train(model_path, train_loader, val_loader, epochs=1000, pretrained=False):
+def train(model_path, train_loader, val_loader, epochs=1000, pretrained=False, save_name="turbulence"):
     model = Turbulence()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -27,13 +27,13 @@ def train(model_path, train_loader, val_loader, epochs=1000, pretrained=False):
     else : 
         print("No pre-trained model found. Training from scratch.")
 
-    trainer = pl.Trainer(max_epochs=epochs)
+    trainer = pl.Trainer(max_epochs=epochs, precision=16)
     model.train()
     trainer.fit(model, train_loader, val_loader)
     print("Training finished.")
     
     # Saving the checkpoint after training
-    saving_path = f'./turbulence/pretrained/turbulence_epoch_{start_epoch + epochs}.ckpt'
+    saving_path = f'./turbulence/pretrained/{save_name}_epoch_{start_epoch + epochs}.ckpt'
     save_checkpoint(model, start_epoch + epochs, saving_path)
 
     # Plotting the training and validation losses
