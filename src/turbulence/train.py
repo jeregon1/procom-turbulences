@@ -4,6 +4,33 @@ import pytorch_lightning as pl
 from turbulence.network import Turbulence
 from turbulence.utils import plot_losses
 
+class LossLoggerCallback(pl.Callback):
+    def __init__(self, model, spectralB, out_dir, model_name):
+        super().__init__()
+        self.model = model
+        self.spectralB = spectralB
+        self.out_dir = out_dir
+        self.model_name = model_name
+        os.makedirs(self.out_dir, exist_ok=True)
+        self.filename = os.path.join(self.out_dir, f"{self.model_name}_losses_b{self.spectralB}.csv")
+        self.model_save_dir = './turbulence/pretrained/'
+        os.makedirs(self.model_save_dir, exist_ok=True)
+
+    def on_epoch_end(self, trainer, pl_module):
+        import csv
+        epoch = trainer.current_epoch
+        if epoch % 10 != 0:
+            return
+        # Save all losses up to current epoch
+        with open(self.filename, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["epoch", "training_loss", "validation_loss", "b"])
+            for i, (train_loss, val_loss) in enumerate(zip(self.model.TRAINING_LOSSES, self.model.VALIDATION_LOSSES)):
+                writer.writerow([i, train_loss, val_loss, self.spectralB])
+        # Save model state
+        model_save_path = os.path.join(self.model_save_dir, f"{self.model_name}_epoch_{epoch}.ckpt")
+        torch.save({'epoch': epoch, 'state_dict': self.model.state_dict()}, model_save_path)
+
 def save_checkpoint(model, epoch, model_path):
     print("Saving model checkpoint...")
     torch.save({
@@ -27,7 +54,9 @@ def train(model_path, train_loader, val_loader, epochs=1000, pretrained=False, s
     else : 
         print("No pre-trained model found. Training from scratch.")
 
-    trainer = pl.Trainer(max_epochs=epochs, log_every_n_steps=5)
+    # Add LossLoggerCallback to save losses after every epoch
+    loss_logger = LossLoggerCallback(model, spectralB, out_dir="/homes/j25lopez/pml/results/", model_name=save_name)
+    trainer = pl.Trainer(max_epochs=epochs, log_every_n_steps=5, callbacks=[loss_logger])
     model.train()
     try:
         trainer.fit(model, train_loader, val_loader)

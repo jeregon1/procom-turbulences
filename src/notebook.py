@@ -4,22 +4,23 @@ from turbulence.train import train
 ## Training parameters
 
 # Data parameters
-nb_images = 50 # Maximum = 500
+nb_images = 500 # Maximum = 500
 val_size = 0.2
 test_size = 0.2
 batch_size = 64
 
 # Training parameters
-num_training_epochs = 75
-pretrained = True
-num_pretrained_epochs = 50
-b=1e-2
+num_training_epochs = 750
+pretrained = False
+num_pretrained_epochs = 0
+b=0.2
 name = f"spectralLoss_b{b}"
 
 image_folder_path = './velocity_images'
 train_loader, val_loader, test_loader = load_data(image_folder_path, nb_images, val_size, test_size, batch_size)
 
-pretrained_model_path = f'./turbulence/pretrained/{name}_epoch_{num_pretrained_epochs}.ckpt'
+# pretrained_model_path = f'./turbulence/pretrained/{name}_epoch_{num_pretrained_epochs}.ckpt'
+pretrained_model_path = f'./lightning_logs/version_54/checkpoints/epoch=396.ckpt'
 
 train(
     pretrained_model_path,

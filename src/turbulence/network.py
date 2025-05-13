@@ -167,7 +167,7 @@ class Turbulence(pl.LightningModule):
         # Forward pass through the autoencoder
         x_hat = self(x)
 
-        if self.current_epoch > 0 and self.current_epoch % 250 == 0 and batch_idx == 0:
+        if self.current_epoch > 0 and self.current_epoch % 250 == 0 and batch_idx == 0:  # hacer este cambio en trainig setp
             if self.alpha > 1e-24:
                 self.alpha = 1e-22
             else:
