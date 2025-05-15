@@ -23,7 +23,7 @@ class Turbulence(pl.LightningModule):
         self.TRAINING_LOSSES = []
         self.VALIDATION_LOSSES = []
         self.alpha = 1e-32
-        self.beta = 0.5
+        self.beta = 0.98
 
         # Encoder part
         self.encoder_linear_layer_1 = nn.Linear(in_features=2048, out_features=1024)

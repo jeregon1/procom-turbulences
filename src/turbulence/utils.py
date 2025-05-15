@@ -195,7 +195,8 @@ def combined_loss(preds,target, model,a=1e-22, b=0.5):
         x_lpips = target.to(model.lpips_device)
         x_hat_lpips = preds.to(model.lpips_device)
         lpips_loss = model.lpips_loss_fn(x_lpips, x_hat_lpips).mean()
-        print("Debug")
+    
+    print(f"MSE: {mse_loss.item():.3e}, Physics: {physics_loss.item():.3e}, LPIPS: {lpips_loss.item():.3e}")
 
     return a*physics_loss + b*mse_loss + (1-a-b)*lpips_loss
 
