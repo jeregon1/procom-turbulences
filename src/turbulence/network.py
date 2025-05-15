@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import pytorch_lightning as pl
+import lpips
 from turbulence.utils import combined_loss
 
 class Turbulence(pl.LightningModule):
@@ -22,6 +23,7 @@ class Turbulence(pl.LightningModule):
         self.TRAINING_LOSSES = []
         self.VALIDATION_LOSSES = []
         self.alpha = 1e-32
+        self.beta = 0.5
 
         # Encoder part
         self.encoder_linear_layer_1 = nn.Linear(in_features=2048, out_features=1024)
@@ -49,6 +51,9 @@ class Turbulence(pl.LightningModule):
 
         # Initialize weights safely
         self.apply(self.init_weights)
+
+        lpips_model = lpips.LPIPS(net='alex').eval()
+        self._lpips_loss = lpips_model.to(self.device)
 
     def init_weights(self, m):
         #Applies Kaiming normal initialization to all Linear layers.
@@ -134,7 +139,7 @@ class Turbulence(pl.LightningModule):
         # Forward pass through the autoencoder
         x_hat = self(x)
 
-        final_loss = combined_loss(x_hat,x,self,self.alpha)
+        final_loss = combined_loss(x_hat,x,self,self.alpha,self.beta)
         final_loss_score = final_loss.item()
 
         # Taking loss
@@ -159,13 +164,13 @@ class Turbulence(pl.LightningModule):
         x_hat = self(x)
 
         if self.current_epoch > 0 and self.current_epoch % 250 == 0 and batch_idx == 0:
-            if self.alpha > 1e-24:
+            if self.alpha > 1e-24 :
                 self.alpha = 1e-22
             else:
                 self.alpha*= 1e3
             print(f"Epoch {self.current_epoch}: Updated alpha to {self.alpha}")
 
-        final_loss = combined_loss(x_hat,x,self,self.alpha)
+        final_loss = combined_loss(x_hat,x,self,self.alpha,self.beta)
         final_loss_score = final_loss.item()
 
         #  update the a used in combined loss automatically

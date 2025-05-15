@@ -183,11 +183,26 @@ def gledzer_physics_loss_complex(u, dt=2e-3, k_n=k_n, lambd = 2,epsilon=0.5):
 
     return loss
 
-def combined_loss(preds,target, model,a=1e-22):
-    reconstructed = preds
-    mse_loss = F.mse_loss(reconstructed, target)
+def combined_loss(preds,target, model,a=1e-22, b=0.5):
+    
+    mse_loss = F.mse_loss(preds, target)
     physics_loss = gledzer_physics_loss_complex(model.latent_space_complex)
-    return (1-a)*mse_loss + a*physics_loss
+
+    # Normalizing in-place for LPIPS: [0, 1] --> [-1, 1]
+    x_norm = (target - 0.5) * 2
+    x_hat_norm = (preds - 0.5) * 2
+
+    # Ensure same device
+    device = next(model._lpips_loss.parameters()).device
+    x_norm = x_norm.to(device)
+    x_hat_norm = x_hat_norm.to(device)
+
+    x_lpips = x_lpips.to(model.lpips_device)
+    x_hat_lpips = x_hat_lpips.to(model.lpips_device)
+
+    lpips_loss = model._lpips_loss(x_hat_norm, x_norm).mean()
+    
+    return a*physics_loss + b*mse_loss + (1-a-b)*lpips_loss
 
 def load_model(model, path):
     if path.endswith('.ckpt'):

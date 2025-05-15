@@ -62,5 +62,6 @@ def load_data(image_folder_path, nb_images=100, test_size=0.2, val_size=0.2, bat
 
 transform = transforms.Compose([
     transforms.Grayscale(),
-    transforms.ToTensor()
+    transforms.ToTensor(),
+    #transforms.Normalize(mean=[0.5]*1, std=[0.5]*1)
 ])
