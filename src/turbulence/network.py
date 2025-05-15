@@ -52,8 +52,10 @@ class Turbulence(pl.LightningModule):
         # Initialize weights safely
         self.apply(self.init_weights)
 
-        lpips_model = lpips.LPIPS(net='alex').eval()
-        self._lpips_loss = lpips_model.to(self.device)
+        # LPIPS
+        self.lpips_loss_fn = lpips.LPIPS(net='alex').eval()
+        self.lpips_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.lpips_loss_fn = self.lpips_loss_fn.to(self.lpips_device)
 
     def init_weights(self, m):
         #Applies Kaiming normal initialization to all Linear layers.
