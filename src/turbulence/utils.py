@@ -188,20 +188,20 @@ def combined_loss(preds,target, model,a=1e-22, b=0.5):
     mse_loss = F.mse_loss(preds, target)
     physics_loss = gledzer_physics_loss_complex(model.latent_space_complex)
 
-    # Normalizing in-place for LPIPS: [0, 1] --> [-1, 1]
-    x_norm = (target - 0.5) * 2
-    x_hat_norm = (preds - 0.5) * 2
+    # L3 = LPIPS loss
+    lpips_loss = torch.tensor(0.0, device=preds.device)
 
     # Ensure same device
-    device = next(model._lpips_loss.parameters()).device
-    x_norm = x_norm.to(device)
-    x_hat_norm = x_hat_norm.to(device)
+    if hasattr(model, 'lpips_loss_fn') and model.lpips_loss_fn is not None:
+        # Normalisation to [-1, 1]
+        x_lpips = (target - 0.5) * 2
+        x_hat_lpips = (preds - 0.5) * 2
 
-    x_lpips = x_lpips.to(model.lpips_device)
-    x_hat_lpips = x_hat_lpips.to(model.lpips_device)
+        x_lpips = x_lpips.to(model.lpips_device)
+        x_hat_lpips = x_hat_lpips.to(model.lpips_device)
 
-    lpips_loss = model._lpips_loss(x_hat_norm, x_norm).mean()
-    
+        lpips_loss = model.lpips_loss_fn(x_lpips, x_hat_lpips).mean()
+
     return a*physics_loss + b*mse_loss + (1-a-b)*lpips_loss
 
 def load_model(model, path):
