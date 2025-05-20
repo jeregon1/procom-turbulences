@@ -8,14 +8,19 @@ def plot_losses(training_loss, validation_loss):
     print("Plotting losses...")
     if len(training_loss) == 0 or len(validation_loss) == 0:
         raise ValueError('No training or validation losses to plot')
-    else : 
-        plt.figure(figsize=(10, 5))
-        plt.title('Training and validation losses')
-        plt.plot(training_loss, label='Training loss')
-        plt.plot(validation_loss, label='Validation loss')
-        plt.xlabel('nb_batch * Epoch')
-        plt.ylabel('Log loss')
-        plt.legend()
+    # Align ranges: scale validation x-axis to match training length
+    plt.figure(figsize=(10, 5))
+    plt.title('Training and validation losses')
+    n_train = len(training_loss)
+    n_val = len(validation_loss)
+    x_train = list(range(n_train))
+    # spread validation points evenly across training iterations
+    x_val = np.linspace(0, n_train - 1, n_val)
+    plt.plot(x_train, training_loss, label='Training loss')
+    plt.plot(x_val, validation_loss, label='Validation loss')
+    plt.xlabel('Training iteration')
+    plt.ylabel('Log loss')
+    plt.legend()
 
 # Plot the reconstruction 
 def plot_reconstruction(model, batch):
@@ -187,12 +192,10 @@ def gledzer_physics_loss_complex(u, dt=2e-3, k_n=k_n, lambd = 2,epsilon=0.5):
 
 def spectral_loss(pred, target):
     import torch.fft
-    # Ensure input is float32 for FFT compatibility
-    # pred = pred.float()
-    # target = target.float()
-    # Compute FFT along spatial dimensions
-    pred_fft = torch.fft.fft2(pred)
-    target_fft = torch.fft.fft2(target)
+    # Perform FFT in full precision to avoid cuFFT half-precision errors
+    with torch.autocast('cuda',enabled=False):
+        pred_fft = torch.fft.fft2(pred.float())
+        target_fft = torch.fft.fft2(target.float())
     # Compute power spectra
     pred_power = torch.abs(pred_fft) ** 2
     target_power = torch.abs(target_fft) ** 2

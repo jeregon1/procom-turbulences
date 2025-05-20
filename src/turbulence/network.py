@@ -5,6 +5,8 @@ import torch.optim as optim
 import numpy as np
 import pytorch_lightning as pl
 from turbulence.utils import combined_loss
+# import warnings
+# warnings.filterwarnings("ignore", ".*ComplexHalf support is experimental.*")
 
 class Turbulence(pl.LightningModule):
 
@@ -69,14 +71,15 @@ class Turbulence(pl.LightningModule):
         - features: The input data
 
         Returns:
-        - reconstructed: The reconstructed output, which aims to match the original input data
+        - reconstructed: The reconstructerd output, which aims to match the original input data
         """
         ### Preprocessing
 
-        # Ensure input is float32 for FFT compatibility
-        # features = features.float()
-        fft = torch.fft.fft(features, n=1024, dim=-1)  # Apply FFT along the last dimension
-        fft = torch.cat((fft.real, fft.imag), dim=-1)
+        # Perform FFT in full precision to avoid cuFFT half-precision errors
+        with torch.autocast("cuda", enabled=False):
+            _fft = torch.fft.fft(features.float(), n=1024, dim=-1)
+            _real, _imag = _fft.real, _fft.imag
+        fft = torch.cat((_real, _imag), dim=-1)
         # Shape : (1005,2048)
 
         ### Encoding
@@ -94,11 +97,12 @@ class Turbulence(pl.LightningModule):
         # Shape : (1005,48)
 
         # Latent Space Treatment
-        # latent_space_im = self.latent_im(encode_out_3).float()
-        # latent_space_re = self.latent_re(encode_out_3).float()
-        latent_space_im = self.latent_im(encode_out_3)
-        latent_space_re = self.latent_re(encode_out_3)
-        self.latent_space_complex = torch.complex(latent_space_re, latent_space_im)
+        # Compute latent space in full precision to avoid ComplexHalf ops under AMP
+        with torch.autocast("cuda", enabled=False):
+            latent_space_im = self.latent_im(encode_out_3.float())
+            latent_space_re = self.latent_re(encode_out_3.float())
+            # combine to complex tensor in fp32
+            self.latent_space_complex = torch.complex(latent_space_re, latent_space_im).to(torch.complex64)
 
         ### Decoding
 
