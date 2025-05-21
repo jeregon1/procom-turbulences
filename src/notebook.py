@@ -10,7 +10,7 @@ test_size = 0.2
 batch_size = 4
 
 # Training parameters
-num_training_epochs = 1250
+num_training_epochs = 600
 pretrained = False
 num_pretrained_epochs = 0
 
